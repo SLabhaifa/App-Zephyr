@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from pylsl import StreamInlet
 from matplotlib.animation import FuncAnimation
 import matplotlib.ticker as ticker
+from collections import deque
 
 import logging
 import datetime
@@ -23,11 +24,47 @@ from core.protocol import *
 logger = logging.getLogger(__name__)
 
 
+# One buffer per stream
+buffers = {}
 def animate(i, signals: {str: StreamInlet}, axs: dict,first_time_stamp:list[float]):
+    window_seconds = 10
+    sample_rate = 250
+    max_samples = window_seconds * sample_rate
     lines = []
+
     for stream_name, stream in signals.items():
         samples, timestamps = stream.pull_chunk()
-        if len(samples) > 0:
+        if len(samples) == 0:
+            continue
+
+        # Flatten if needed
+        xs = [sample[0] if isinstance(sample, list) else float(sample) for sample in samples]
+
+        # Align time
+        if first_time_stamp[0] == 0:
+            first_time_stamp[0] = timestamps[0]
+        timestamps = [t - first_time_stamp[0] for t in timestamps]
+
+        # Initialize buffer
+        if stream_name not in buffers:
+            buffers[stream_name] = deque(maxlen=max_samples)
+
+        # Store in buffer
+        buffers[stream_name].extend(zip(timestamps, xs))
+
+        # Prepare for plot
+        times_vals = list(buffers[stream_name])
+        times, values = zip(*times_vals)
+
+        ax = axs[stream_name]
+        ax.clear()
+        line = ax.plot(times, values)[0]
+        ax.set_xlim(max(0, times[-1] - window_seconds), times[-1])
+        ax.set_title(stream_name)
+        lines.append(line)
+
+        return lines
+'''
             xs = []
             for sample in samples:
                 if isinstance(sample, list):
@@ -39,6 +76,8 @@ def animate(i, signals: {str: StreamInlet}, axs: dict,first_time_stamp:list[floa
             timestamps = np.array(timestamps) - first_time_stamp[0]
             lines.append(axs[stream_name].plot(timestamps, xs)[0])
     return list(axs.values())
+    
+    '''
 
 
 def receive():
