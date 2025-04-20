@@ -23,6 +23,7 @@ from core.protocol import *
 
 logger = logging.getLogger(__name__)
 
+from collections import deque
 
 # One buffer per stream
 buffers = {}
@@ -101,7 +102,7 @@ def receive():
         ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
 
     # Create a StreamInlet to read from the stream.
-    ani = FuncAnimation(fig, animate, fargs=(signals, axes,first_time_stamp), interval=interval_size)
+    ani = FuncAnimation(fig, animate, fargs=(signals, axes,first_time_stamp), interval=interval_size, cache_frame_data=False)
     plt.show()
 
 
